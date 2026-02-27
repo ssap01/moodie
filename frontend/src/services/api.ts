@@ -17,7 +17,9 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ error: 'Request failed' }));
-    throw new Error(error.error || `HTTP ${res.status}`);
+    const err: any = new Error(error.error || `HTTP ${res.status}`);
+    err.data = error;
+    throw err;
   }
 
   return res.json();
@@ -100,6 +102,12 @@ export const authAPI = {
       method: 'POST',
       body: JSON.stringify({ phone: data.phone.replace(/\D/g, ''), otp: data.otp.trim() }),
     }),
+
+  restoreAccount: (data: { email: string; password: string }) =>
+    request<{ message: string; token: string; user: User }>('/auth/restore-account', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };
 
 // Admin API (관리자 전용)
@@ -121,6 +129,11 @@ export const adminAPI = {
     request<{ message: string; user: AdminUser }>(`/admin/users/${userId}/role`, {
       method: 'PATCH',
       body: JSON.stringify({ role }),
+    }),
+
+  restoreUser: (userId: number) =>
+    request<{ message: string; user: AdminUser }>(`/admin/users/${userId}/restore`, {
+      method: 'PATCH',
     }),
 
   getSyncSettings: () =>

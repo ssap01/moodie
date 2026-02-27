@@ -105,6 +105,21 @@ const Admin: React.FC<AdminProps> = ({ currentUser, onNavigate }) => {
     }
   };
 
+  const handleRestoreUser = async (targetUser: AdminUser) => {
+    if (targetUser.status !== 'withdrawn') return;
+    setUpdatingId(targetUser.user_id);
+    try {
+      await adminAPI.restoreUser(targetUser.user_id);
+      setUsers((prev) =>
+        prev.map((u) => (u.user_id === targetUser.user_id ? { ...u, status: 'approved' } : u))
+      );
+    } catch (err: any) {
+      setUsersError(err.message || '계정 복구에 실패했습니다.');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   const roleLabel: Record<string, string> = {
     USER: '일반',
     ADMIN: '관리자',
@@ -333,6 +348,16 @@ const Admin: React.FC<AdminProps> = ({ currentUser, onNavigate }) => {
                                     className="px-3 py-1.5 text-[10px] uppercase tracking-wider border border-black/30 text-[#2D2A26] rounded hover:bg-black/5 disabled:opacity-50"
                                   >
                                     {updatingId === u.user_id ? '처리 중...' : '관리자 해지'}
+                                  </button>
+                                )}
+                                {u.status === 'withdrawn' && (
+                                  <button
+                                    type="button"
+                                    disabled={updatingId === u.user_id}
+                                    onClick={() => handleRestoreUser(u)}
+                                    className="px-3 py-1.5 text-[10px] uppercase tracking-wider bg-green-700 text-white rounded hover:opacity-80 disabled:opacity-50"
+                                  >
+                                    {updatingId === u.user_id ? '처리 중...' : '계정 복구'}
                                   </button>
                                 )}
                               </td>

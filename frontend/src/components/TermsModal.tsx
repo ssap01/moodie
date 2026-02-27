@@ -131,8 +131,9 @@ const termsContent = (
         <h3 className="serif text-base mb-2">7. Termination</h3>
         <p>
           (1) Users may terminate their membership at any time by requesting account deletion.<br />
-          (2) The Company may restrict or terminate a user's account if the user violates these Terms or engages in activities harmful to the Service or other users.<br />
-          (3) Upon termination, user data will be handled in accordance with the Privacy Policy.
+          (2) Upon termination, the account enters a 30-day grace period during which the user may restore their account by logging in. After 30 days, all personal data will be permanently deleted.<br />
+          (3) The Company may restrict or terminate a user's account if the user violates these Terms or engages in activities harmful to the Service or other users.<br />
+          (4) Upon termination, user data will be handled in accordance with the Privacy Policy.
         </p>
       </section>
       <section>
@@ -236,9 +237,11 @@ const privacyContent = (
       <section>
         <h3 className="serif text-base mb-2">6. Data Retention & Deletion</h3>
         <p>
-          (1) Personal information is retained for the duration of membership and deleted promptly upon account termination.<br />
-          (2) Upon account deletion, all personal data will be permanently removed within 30 days, except where retention is required by law.<br />
-          (3) Service usage data may be anonymized and retained for statistical purposes.
+          (1) Personal information is retained for the duration of membership.<br />
+          (2) Upon account deletion, the account is placed in a soft-deleted state for 30 days. During this period, users may restore their account by logging in with their existing credentials.<br />
+          (3) After the 30-day grace period, all personal data — including email, password, nickname, phone number, ratings, wishlist, and activity logs — will be permanently and irreversibly deleted.<br />
+          (4) Where retention is required by applicable law (e.g., transaction records), such data will be retained separately for the legally mandated period and then deleted.<br />
+          (5) Service usage data may be anonymized and retained for statistical purposes.
         </p>
       </section>
       <section>

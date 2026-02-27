@@ -78,6 +78,37 @@ router.patch('/users/:id/role', requireRole('SUPER_ADMIN'), (req, res) => {
 });
 
 /**
+ * PATCH /admin/users/:id/restore
+ * 탈퇴 회원 복구 (관리자용)
+ */
+router.patch('/users/:id/restore', (req, res) => {
+    try {
+        const targetUserId = parseInt(req.params.id, 10);
+        if (Number.isNaN(targetUserId)) {
+            return res.status(400).json({ error: '유효하지 않은 사용자 ID입니다.' });
+        }
+
+        const target = db.prepare('SELECT user_id, email, status FROM users WHERE user_id = ?').get(targetUserId);
+        if (!target) {
+            return res.status(404).json({ error: '해당 사용자를 찾을 수 없습니다.' });
+        }
+        if (target.status !== 'withdrawn') {
+            return res.status(400).json({ error: '탈퇴 상태가 아닌 계정입니다.' });
+        }
+
+        db.prepare(
+            'UPDATE users SET status = ?, deleted_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?'
+        ).run('approved', targetUserId);
+
+        const updated = db.prepare('SELECT user_id, email, nickname, role, status, created_at FROM users WHERE user_id = ?').get(targetUserId);
+        res.json({ message: '계정이 복구되었습니다.', user: updated });
+    } catch (err) {
+        console.error('Admin restore user error:', err);
+        res.status(500).json({ error: '계정 복구 중 오류가 발생했습니다.' });
+    }
+});
+
+/**
  * GET /admin/sync/settings
  * 자동 동기화 ON/OFF 등 동기화 설정 조회
  */

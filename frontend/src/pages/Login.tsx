@@ -52,6 +52,10 @@ const Login: React.FC<LoginProps> = ({ onLogin, initialSignUp, initialErrorFromU
   const [agreeTermsAndPrivacy, setAgreeTermsAndPrivacy] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState<'terms' | 'privacy' | null>(null);
 
+  // 탈퇴 계정 복구
+  const [withdrawnPrompt, setWithdrawnPrompt] = useState<{ daysLeft: number } | null>(null);
+  const [restoreLoading, setRestoreLoading] = useState(false);
+
   // 비밀번호 찾기
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
@@ -173,7 +177,26 @@ const Login: React.FC<LoginProps> = ({ onLogin, initialSignUp, initialErrorFromU
         onLogin(data.token, data.user ?? (await authAPI.me()));
       }
     } catch (err: any) {
-      setError(err.message || 'Login failed. Please try again.');
+      if (err.data?.withdrawn) {
+        setWithdrawnPrompt({ daysLeft: err.data.daysLeft ?? 0 });
+        setError('');
+      } else {
+        setError(err.message || 'Login failed. Please try again.');
+      }
+    }
+  };
+
+  const handleRestoreAccount = async () => {
+    setRestoreLoading(true);
+    setError('');
+    try {
+      const data = await authAPI.restoreAccount({ email, password });
+      localStorage.setItem('token', data.token);
+      onLogin(data.token, data.user);
+    } catch (err: any) {
+      setError(err.message || '계정 복구에 실패했습니다.');
+    } finally {
+      setRestoreLoading(false);
     }
   };
 
@@ -378,6 +401,40 @@ const Login: React.FC<LoginProps> = ({ onLogin, initialSignUp, initialErrorFromU
     );
   }
 
+  if (withdrawnPrompt) {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center p-8 animate-fadeIn">
+        <div className="w-full max-w-md text-center">
+          <h2 className="serif text-3xl mb-4 text-[#2D2A26]">탈퇴된 계정</h2>
+          <p className="text-sm text-[#2D2A26]/80 mb-2">
+            이 계정은 탈퇴 처리된 상태입니다.
+          </p>
+          <p className="text-sm text-[#2D2A26]/80 mb-8">
+            {withdrawnPrompt.daysLeft > 0
+              ? `${withdrawnPrompt.daysLeft}일 이내에 복구하지 않으면 모든 데이터가 영구 삭제됩니다.`
+              : '곧 모든 데이터가 영구 삭제될 예정입니다.'}
+          </p>
+          {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
+          <button
+            type="button"
+            disabled={restoreLoading}
+            onClick={handleRestoreAccount}
+            className="w-full bg-black text-[#D8D5CF] py-5 uppercase text-[10px] tracking-[0.4em] hover:bg-black/90 transition-colors disabled:opacity-50 mb-4"
+          >
+            {restoreLoading ? '복구 중...' : '계정 복구하기'}
+          </button>
+          <button
+            type="button"
+            onClick={() => { setWithdrawnPrompt(null); setEmail(''); setPassword(''); }}
+            className="w-full text-[9px] tracking-[0.3em] uppercase opacity-40 hover:opacity-100 transition-opacity"
+          >
+            돌아가기
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (showFindEmail) {
     return (
       <div className="min-h-[80vh] flex items-center justify-center p-8 animate-fadeIn">
@@ -526,6 +583,20 @@ const Login: React.FC<LoginProps> = ({ onLogin, initialSignUp, initialErrorFromU
                 )}
               </button>
             </div>
+            {isSignUp && password.length > 0 && (
+              <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1">
+                {[
+                  { ok: passwordRequirements.minLength, label: '8자 이상' },
+                  { ok: passwordRequirements.hasLetter, label: '영문 포함' },
+                  { ok: passwordRequirements.hasNumber, label: '숫자 포함' },
+                  { ok: passwordRequirements.hasSpecial, label: '특수문자 포함' },
+                ].map((r) => (
+                  <p key={r.label} className={`text-[9px] flex items-center gap-1 ${r.ok ? 'text-green-700' : 'text-black/35'}`}>
+                    <span>{r.ok ? '✓' : '✗'}</span>{r.label}
+                  </p>
+                ))}
+              </div>
+            )}
           </div>
 
           {isSignUp && (
@@ -560,9 +631,15 @@ const Login: React.FC<LoginProps> = ({ onLogin, initialSignUp, initialErrorFromU
                     )}
                   </button>
                 </div>
+                {passwordConfirm.length > 0 && (
+                  <p className={`text-[9px] flex items-center gap-1 pt-1 ${password === passwordConfirm ? 'text-green-700' : 'text-red-500'}`}>
+                    <span>{password === passwordConfirm ? '✓' : '✗'}</span>
+                    {password === passwordConfirm ? '비밀번호 일치' : '비밀번호 불일치'}
+                  </p>
+                )}
               </div>
               <div className="space-y-1">
-                <label className="text-[8px] tracking-[0.3em] uppercase opacity-40">Nickname</label>
+                <label className="text-[8px] tracking-[0.3em] uppercase opacity-40">Nickname (optional)</label>
                 <input
                   type="text"
                   value={nickname}

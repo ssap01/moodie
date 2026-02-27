@@ -102,7 +102,36 @@ app.listen(PORT, async () => {
     // 영화 조회 로그 정리: 매일 새벽 2시 4분
     cron.schedule('4 2 * * *', () => cleanupMovieViewLog());
 
+    /** 탈퇴 30일 경과 회원 완전 삭제 (개인정보 파기) */
+    function purgeWithdrawnUsers() {
+        try {
+            const expired = db.prepare(
+                "SELECT user_id FROM users WHERE status = 'withdrawn' AND deleted_at < datetime('now', '-30 days')"
+            ).all();
+            if (expired.length === 0) return;
+
+            const deleteRelated = db.transaction((userIds) => {
+                for (const { user_id } of userIds) {
+                    db.prepare('DELETE FROM rating WHERE user_id = ?').run(user_id);
+                    db.prepare('DELETE FROM user_movie_wishlist WHERE user_id = ?').run(user_id);
+                    db.prepare('DELETE FROM recommendation_cache WHERE user_id = ?').run(user_id);
+                    db.prepare('DELETE FROM auth_log WHERE user_id = ?').run(user_id);
+                    db.prepare('DELETE FROM movie_view_log WHERE user_id = ?').run(user_id);
+                    db.prepare('DELETE FROM users WHERE user_id = ?').run(user_id);
+                }
+            });
+            deleteRelated(expired);
+            console.log('[PurgeUsers] 탈퇴 30일 경과 회원', expired.length, '명 완전 삭제 완료');
+        } catch (err) {
+            console.error('[PurgeUsers] 오류:', err);
+        }
+    }
+
+    // 탈퇴 회원 완전 삭제: 매일 새벽 2시 5분
+    cron.schedule('5 2 * * *', () => purgeWithdrawnUsers());
+
     // 서버 기동 시에도 한 번 실행 (선택)
     cleanupSearchLog();
     cleanupMovieViewLog();
+    purgeWithdrawnUsers();
 });

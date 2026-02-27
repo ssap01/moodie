@@ -186,7 +186,19 @@ router.post('/login', (req, res) => {
         }
 
         if (user.status === 'withdrawn') {
-            return res.status(401).json({ error: '탈퇴한 계정입니다.' });
+            const valid = bcrypt.compareSync(password, user.password);
+            if (!valid) {
+                return res.status(401).json({ error: 'Invalid email or password.' });
+            }
+            const deletedAt = db.prepare('SELECT deleted_at FROM users WHERE user_id = ?').get(user.user_id)?.deleted_at;
+            const daysLeft = deletedAt
+                ? Math.max(0, 30 - Math.floor((Date.now() - new Date(deletedAt + 'Z').getTime()) / 86400000))
+                : 0;
+            return res.status(403).json({
+                error: '탈퇴한 계정입니다. 복구하시겠습니까?',
+                withdrawn: true,
+                daysLeft,
+            });
         }
         if (user.status !== 'approved') {
             return res.status(403).json({ error: 'Your account has not been approved.' });
@@ -755,6 +767,70 @@ router.post('/logout', authMiddleware, (req, res) => {
         console.error('Logout log error:', err);
     }
     res.json({ message: 'Logged out' });
+});
+
+/**
+ * POST /auth/restore-account
+ * 탈퇴 계정 복구 (30일 이내, 비밀번호 확인)
+ */
+router.post('/restore-account', (req, res) => {
+    try {
+        const { email, password } = req.body;
+
+        if (!email || !password) {
+            return res.status(400).json({ error: '이메일과 비밀번호를 입력해 주세요.' });
+        }
+
+        const trimmedEmail = email.trim().toLowerCase();
+        const user = db.prepare('SELECT user_id, password, status, deleted_at FROM users WHERE email = ?').get(trimmedEmail);
+
+        if (!user || user.status !== 'withdrawn') {
+            return res.status(400).json({ error: '복구할 수 있는 계정이 없습니다.' });
+        }
+
+        const valid = bcrypt.compareSync(password, user.password);
+        if (!valid) {
+            return res.status(401).json({ error: 'Invalid email or password.' });
+        }
+
+        if (user.deleted_at) {
+            const elapsed = Date.now() - new Date(user.deleted_at + 'Z').getTime();
+            if (elapsed > 30 * 86400000) {
+                return res.status(400).json({ error: '복구 가능 기간(30일)이 지났습니다.' });
+            }
+        }
+
+        db.prepare(
+            'UPDATE users SET status = ?, deleted_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?'
+        ).run('approved', user.user_id);
+
+        const restored = db.prepare('SELECT user_id, email, nickname, phone, role, status FROM users WHERE user_id = ?').get(user.user_id);
+        const token = jwt.sign(
+            { user_id: restored.user_id, email: restored.email },
+            process.env.JWT_SECRET || 'secret',
+            { expiresIn: '7d' }
+        );
+
+        try {
+            db.prepare('INSERT INTO auth_log (user_id, event_type) VALUES (?, ?)').run(restored.user_id, 'restore');
+        } catch (_) {}
+
+        res.json({
+            message: '계정이 복구되었습니다.',
+            token,
+            user: {
+                user_id: restored.user_id,
+                email: restored.email,
+                nickname: restored.nickname,
+                phone: restored.phone,
+                role: restored.role,
+                status: restored.status,
+            },
+        });
+    } catch (err) {
+        console.error('Restore account error:', err);
+        res.status(500).json({ error: '계정 복구 중 오류가 발생했습니다.' });
+    }
 });
 
 /**
