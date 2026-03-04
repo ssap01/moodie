@@ -9,6 +9,10 @@ interface NavbarProps {
   onLogout: () => void;
 }
 
+const CINEMA_URL = typeof navigator !== 'undefined' && navigator.language.startsWith('ko')
+  ? 'https://www.cgv.co.kr/'
+  : 'https://www.fandango.com/';
+
 const Navbar: React.FC<NavbarProps> = ({ onNavigate, isLoggedIn, currentUser, onLogout }) => {
   const isAdmin = currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN');
   const [scrolled, setScrolled] = useState(false);
@@ -93,10 +97,19 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate, isLoggedIn, currentUser, on
             >
               All Movies
             </button>
-            <button type="button" className="hover:opacity-50 transition-opacity py-1">
+            <a
+              href={CINEMA_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="normal-case hover:opacity-50 transition-opacity py-1"
+            >
               Cinema
-            </button>
-            <button type="button" className="hover:opacity-50 transition-opacity py-1">
+            </a>
+            <button
+              type="button"
+              onClick={() => onNavigate('CURATIONS')}
+              className="hover:opacity-50 transition-opacity py-1"
+            >
               Curations
             </button>
             <div className="w-[1px] h-4 bg-black/10 md:mx-1 lg:mx-2 shrink-0" aria-hidden />
@@ -148,8 +161,16 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate, isLoggedIn, currentUser, on
       >
         <div className="flex flex-col items-center justify-center h-full gap-8 uppercase text-[12px] tracking-[0.3em] font-light text-[#2D2A26] px-6">
           <button type="button" onClick={() => handleMobileNav('ALL_MOVIES')} className="py-2">All Movies</button>
-          <button type="button" className="py-2 opacity-40">Cinema</button>
-          <button type="button" className="py-2 opacity-40">Curations</button>
+          <a
+            href={CINEMA_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => setMobileMenuOpen(false)}
+            className="normal-case py-2"
+          >
+            Cinema
+          </a>
+          <button type="button" onClick={() => handleMobileNav('CURATIONS')} className="py-2">Curations</button>
           <div className="w-12 h-[1px] bg-black/10 my-4" />
           {isLoggedIn ? (
             <>

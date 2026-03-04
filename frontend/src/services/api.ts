@@ -1,6 +1,7 @@
 import type { User, Movie, Rating, Recommendation, UserRating, WishlistItem } from '../types';
 
-const API_BASE = '/api';
+// 개발: Vite proxy /api → backend. 프로덕션: VITE_API_URL 또는 /api(리버스 프록시)
+const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
 
 async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const token = localStorage.getItem('token');
@@ -137,17 +138,18 @@ export const adminAPI = {
     }),
 
   getSyncSettings: () =>
-    request<{ auto_sync_enabled: boolean; last_movie_sync_at: string | null; last_sync_triggered_by_label: string | null; movie_count: number }>('/admin/sync/settings'),
+    request<{ auto_sync_enabled: boolean; last_movie_sync_at: string | null; last_sync_triggered_by_label: string | null; movie_count: number; max_movies_per_sync: number }>('/admin/sync/settings'),
 
-  updateSyncSettings: (data: { auto_sync_enabled: boolean }) =>
-    request<{ auto_sync_enabled: boolean }>('/admin/sync/settings', {
+  updateSyncSettings: (data: { auto_sync_enabled?: boolean; max_movies_per_sync?: number }) =>
+    request<{ auto_sync_enabled: boolean; max_movies_per_sync: number }>('/admin/sync/settings', {
       method: 'PATCH',
       body: JSON.stringify(data),
     }),
 
-  syncMovies: () =>
+  syncMovies: (options?: { maxMovies?: number }) =>
     request<{ message: string; skipped: boolean; count: number }>('/admin/sync/movies', {
       method: 'POST',
+      body: JSON.stringify(options ?? {}),
     }),
 
   getSearchLogs: (limit?: number) =>

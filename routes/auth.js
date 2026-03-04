@@ -137,11 +137,16 @@ router.post('/signup', (req, res) => {
             db.prepare('INSERT INTO auth_log (user_id, event_type) VALUES (?, ?)').run(user.user_id, 'signup');
         } catch (_) { /* 로그 실패는 무시 */ }
 
+        const secret = process.env.JWT_SECRET;
+        if (!secret) {
+            return res.status(500).json({ error: 'Server configuration error.' });
+        }
+
         res.status(201).json({
             message: 'Sign up completed successfully.',
             token: jwt.sign(
                 { user_id: user.user_id, email: user.email },
-                process.env.JWT_SECRET || 'secret',
+                secret,
                 { expiresIn: '7d' }
             ),
             user: {
@@ -804,10 +809,15 @@ router.post('/restore-account', (req, res) => {
             'UPDATE users SET status = ?, deleted_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?'
         ).run('approved', user.user_id);
 
+        const secret = process.env.JWT_SECRET;
+        if (!secret) {
+            return res.status(500).json({ error: 'Server configuration error.' });
+        }
+
         const restored = db.prepare('SELECT user_id, email, nickname, phone, role, status FROM users WHERE user_id = ?').get(user.user_id);
         const token = jwt.sign(
             { user_id: restored.user_id, email: restored.email },
-            process.env.JWT_SECRET || 'secret',
+            secret,
             { expiresIn: '7d' }
         );
 

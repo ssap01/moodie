@@ -23,25 +23,23 @@ db.prepare(`
 CREATE TABLE IF NOT EXISTS movies (
     movie_id INTEGER PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
-    title_en VARCHAR(255),
     synopsis TEXT,
     release_date DATE,
     runtime INT,
     type_nm VARCHAR(50),
     poster_url VARCHAR(512),
-    backdrop_url VARCHAR(512),
-    rank INT,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME
 )
 `).run();
 
-// 기존 DB에 backdrop_url 컬럼 없으면 추가
 try {
     const cols = db.prepare("PRAGMA table_info(movies)").all();
-    const hasBackdrop = cols.some((c) => c.name === 'backdrop_url');
-    if (!hasBackdrop) {
-        db.prepare('ALTER TABLE movies ADD COLUMN backdrop_url VARCHAR(512)').run();
+    if (cols.some((c) => c.name === 'backdrop_url')) {
+        db.prepare('ALTER TABLE movies DROP COLUMN backdrop_url').run();
+    }
+    if (cols.some((c) => c.name === 'rank')) {
+        db.prepare('ALTER TABLE movies DROP COLUMN rank').run();
     }
     const hasImdbRating = cols.some((c) => c.name === 'imdb_rating');
     if (!hasImdbRating) {
@@ -200,6 +198,14 @@ CREATE TABLE IF NOT EXISTS find_email_otp (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 )
 `).run();
+
+// title_en 컬럼 제거 (이미 없으면 무시)
+try {
+    const cols = db.prepare("PRAGMA table_info(movies)").all();
+    if (cols.some(c => c.name === 'title_en')) {
+        db.prepare("ALTER TABLE movies DROP COLUMN title_en").run();
+    }
+} catch (_) {}
 
 console.log('SQLite DB 및 테이블 생성 완료!');
 

@@ -106,7 +106,6 @@ function getMyWishlist(req, res) {
             SELECT
                 m.movie_id,
                 m.title,
-                m.title_en,
                 m.poster_url,
                 m.release_date,
                 w.created_at

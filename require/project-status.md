@@ -4,7 +4,7 @@
 - Node.js + Express (port 3000)
 - JWT 인증, bcrypt 비밀번호 암호화
 - API: `/auth`(로그인·회원가입·프로필·비밀번호변경·계정삭제), `/movies`, `/ratings`, `/recommendations`, `/mood-recommendations`, `/chatbot`
-- 영화 데이터: OMDb·KOBIS 연동, 서버 기동 시 DB 동기화
+- 영화 데이터: OMDb 연동(현재 KOBIS 미사용), 서버 기동 시 DB 동기화
 - 규칙 기반 추천, GPT는 1줄 추천 이유용
 
 ## 프론트엔드

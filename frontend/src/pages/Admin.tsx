@@ -23,6 +23,7 @@ const Admin: React.FC<AdminProps> = ({ currentUser, onNavigate }) => {
   const [syncLoading, setSyncLoading] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
   const [syncError, setSyncError] = useState('');
+  const [maxMovies, setMaxMovies] = useState<number>(50);
 
   const [searchLogs, setSearchLogs] = useState<{ recent: { log_id: number; query: string; created_at: string }[]; popular: { query: string; count: number }[] } | null>(null);
   const [searchLogsLoading, setSearchLogsLoading] = useState(false);
@@ -40,7 +41,10 @@ const Admin: React.FC<AdminProps> = ({ currentUser, onNavigate }) => {
       setSyncMessage('');
       adminAPI
         .getSyncSettings()
-        .then((res) => setSyncSettings({ auto_sync_enabled: res.auto_sync_enabled, last_movie_sync_at: res.last_movie_sync_at, last_sync_triggered_by_label: res.last_sync_triggered_by_label ?? null, movie_count: res.movie_count }))
+        .then((res) => {
+          setSyncSettings({ auto_sync_enabled: res.auto_sync_enabled, last_movie_sync_at: res.last_movie_sync_at, last_sync_triggered_by_label: res.last_sync_triggered_by_label ?? null, movie_count: res.movie_count });
+          if (typeof res.max_movies_per_sync === 'number') setMaxMovies(res.max_movies_per_sync);
+        })
         .catch(() => setSyncSettings({ auto_sync_enabled: false, last_movie_sync_at: null }))
         .finally(() => setSyncSettingsLoading(false));
     }
@@ -152,7 +156,7 @@ const Admin: React.FC<AdminProps> = ({ currentUser, onNavigate }) => {
     setSyncError('');
     setSyncMessage('');
     try {
-      const res = await adminAPI.syncMovies();
+      const res = await adminAPI.syncMovies({ maxMovies });
       setSyncMessage(res.message || `${res.count}개 영화 동기화 완료.`);
       if (!res.skipped) {
         adminAPI.getSyncSettings().then((s) => setSyncSettings((prev) => prev ? { ...prev, last_movie_sync_at: s.last_movie_sync_at, last_sync_triggered_by_label: s.last_sync_triggered_by_label ?? null, movie_count: s.movie_count } : prev));
@@ -219,7 +223,10 @@ const Admin: React.FC<AdminProps> = ({ currentUser, onNavigate }) => {
           <main className="flex-1">
             {activeTab === 'movies' && (
               <div>
-                <h2 className="text-xl font-bold mb-4 text-[#2D2A26]">영화 관리</h2>
+                <h2 className="text-xl font-bold mb-2 text-[#2D2A26]">영화 관리</h2>
+                <p className="text-[11px] text-black/50 mb-2">
+                  시스템은 영화 데이터를 최대 약 500편까지 유지하며, 사용 이력이 없는 오래된 영화는 자동으로 정리됩니다.
+                </p>
                 {typeof syncSettings?.movie_count === 'number' && (
                   <p className="text-sm text-[#2D2A26]/70 mb-3">현재 영화 개수: {syncSettings.movie_count}편</p>
                 )}
@@ -250,6 +257,24 @@ const Admin: React.FC<AdminProps> = ({ currentUser, onNavigate }) => {
                         {syncSettings?.auto_sync_enabled ? 'ON (매일 새벽 2시 실행)' : 'OFF'}
                       </span>
                     </div>
+                    <label className="flex items-center gap-2 text-sm text-[#2D2A26]">
+                      <span>한 번에 가져올 최대 편수</span>
+                      <select
+                        value={maxMovies}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          setMaxMovies(val);
+                          adminAPI.updateSyncSettings({ max_movies_per_sync: val }).catch(() => {});
+                        }}
+                        disabled={syncLoading}
+                        className="border border-black/20 rounded px-2 py-1 text-sm bg-white disabled:opacity-50"
+                      >
+                        <option value={20}>20편</option>
+                        <option value={50}>50편</option>
+                        <option value={100}>100편</option>
+                        <option value={200}>200편</option>
+                      </select>
+                    </label>
                     <button
                       type="button"
                       disabled={syncLoading}

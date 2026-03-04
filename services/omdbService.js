@@ -29,10 +29,15 @@ async function get(params) {
  * 영화 검색 (페이지당 최대 10개)
  * @param {string} query - 검색어
  * @param {number} page - 페이지
+ * @param {number} [year] - 연도 (예: 2023)
  * @returns {Promise<{ Search: Array<{ imdbID, Title, Year, Poster }> }>}
  */
-async function search(query, page = 1) {
-    return get({ s: query, type: 'movie', page });
+async function search(query, page = 1, year) {
+    const params = { s: query, type: 'movie', page };
+    if (typeof year === 'number' && Number.isInteger(year)) {
+        params.y = String(year);
+    }
+    return get(params);
 }
 
 /**

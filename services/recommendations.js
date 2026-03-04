@@ -8,7 +8,7 @@
 
 const db = require('../db');
 
-const MOVIE_FIELDS = 'movie_id, title, title_en, synopsis, release_date, runtime, type_nm, poster_url, backdrop_url, rank, imdb_rating';
+const MOVIE_FIELDS = 'movie_id, title, synopsis, release_date, runtime, type_nm, poster_url, imdb_rating';
 
 /**
  * 영화 객체로 변환
@@ -18,14 +18,11 @@ function toMovie(row) {
     return {
         movie_id: row.movie_id,
         title: row.title,
-        title_en: row.title_en,
         synopsis: row.synopsis,
         release_date: row.release_date,
         runtime: row.runtime,
         type_nm: row.type_nm,
         poster_url: row.poster_url,
-        backdrop_url: row.backdrop_url,
-        rank: row.rank,
     };
 }
 
@@ -60,7 +57,7 @@ function getRecommendedMovies(userId, limit = 5) {
         if (userRatedIds.length > 0) {
             const ratedPh = userRatedIds.map(() => '?').join(',');
             rows = db.prepare(`
-                SELECT m.movie_id, m.title, m.title_en, m.synopsis, m.release_date, m.runtime, m.type_nm, m.poster_url, m.backdrop_url, m.rank
+                SELECT m.movie_id, m.title, m.synopsis, m.release_date, m.runtime, m.type_nm, m.poster_url
                 FROM movies m
                 JOIN movie_genres mg ON m.movie_id = mg.movie_id
                 WHERE mg.genre_id IN (${placeholders})
@@ -71,7 +68,7 @@ function getRecommendedMovies(userId, limit = 5) {
             `).all(...genreIds, ...userRatedIds, safeLimit);
         } else {
             rows = db.prepare(`
-                SELECT m.movie_id, m.title, m.title_en, m.synopsis, m.release_date, m.runtime, m.type_nm, m.poster_url, m.backdrop_url, m.rank
+                SELECT m.movie_id, m.title, m.synopsis, m.release_date, m.runtime, m.type_nm, m.poster_url
                 FROM movies m
                 JOIN movie_genres mg ON m.movie_id = mg.movie_id
                 WHERE mg.genre_id IN (${placeholders})
@@ -143,6 +140,7 @@ async function generateRecommendationReason(genreNames, movieTitle) {
 
 /**
  * 추천 결과 생성 (영화 목록 + GPT 이유)
+ * GPT 호출 병렬 처리로 속도 개선
  * @param {number} [limit=5] - 추천 개수
  */
 async function buildRecommendations(userId, limit = 5) {
@@ -152,12 +150,10 @@ async function buildRecommendations(userId, limit = 5) {
         ? db.prepare('SELECT name FROM genres WHERE genre_id IN (' + genreIds.map(() => '?').join(',') + ')').all(...genreIds).map((g) => g.name)
         : [];
 
-    const result = [];
-
-    for (const movie of movies) {
-        const reason = await generateRecommendationReason(genreNames, movie.title);
-        result.push({ movie, reason });
-    }
+    const reasonPromises = movies.map((movie) =>
+        generateRecommendationReason(genreNames, movie.title).then((reason) => ({ movie, reason }))
+    );
+    const result = await Promise.all(reasonPromises);
 
     return result;
 }

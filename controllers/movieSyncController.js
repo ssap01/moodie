@@ -7,6 +7,8 @@
 const db = require('../db');
 const { search, getByImdbId } = require('../services/omdbService');
 
+const MAX_TOTAL_MOVIES = 500;
+
 /**
  * 영화 데이터가 DB에 존재하는지 확인
  */
@@ -42,7 +44,7 @@ function parseReleased(released, year) {
 /**
  * OMDb 상세 응답을 movies 테이블 행으로 변환
  */
-function toMovieRow(detail, rank = null) {
+function toMovieRow(detail) {
     const movieId = imdbIdToMovieId(detail.imdbID);
     if (!movieId || !detail.Title) return null;
 
@@ -67,14 +69,11 @@ function toMovieRow(detail, rank = null) {
     return {
         movie_id: movieId,
         title: detail.Title.trim(),
-        title_en: null,
         synopsis,
         release_date: releaseDate,
         runtime: runtime || null,
         type_nm: typeNm,
         poster_url: posterUrl,
-        backdrop_url: posterUrl,
-        rank,
         imdb_rating: Number.isNaN(imdbRating) ? null : imdbRating,
         rated,
         country,
@@ -91,7 +90,7 @@ function toMovieRow(detail, rank = null) {
 function saveGenresFromString(movieId, genreStr) {
     db.prepare('DELETE FROM movie_genres WHERE movie_id = ?').run(movieId);
     if (!genreStr || typeof genreStr !== 'string') return;
-    const names = genreStr.split(',').map((s) => s.trim()).filter(Boolean);
+    const names = genreStr.split(',').map((s) => s.trim()).filter(Boolean).filter((n) => n.toUpperCase() !== 'N/A');
     for (const name of names) {
         let genreRow = db.prepare('SELECT genre_id FROM genres WHERE name = ?').get(name);
         if (!genreRow) {
@@ -111,18 +110,15 @@ function saveGenresFromString(movieId, genreStr) {
  */
 function saveMovie(row) {
     db.prepare(`
-        INSERT INTO movies (movie_id, title, title_en, synopsis, release_date, runtime, type_nm, poster_url, backdrop_url, rank, imdb_rating, rated, country, language, director, metascore, imdb_votes, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        INSERT INTO movies (movie_id, title, synopsis, release_date, runtime, type_nm, poster_url, imdb_rating, rated, country, language, director, metascore, imdb_votes, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         ON CONFLICT(movie_id) DO UPDATE SET
             title = excluded.title,
-            title_en = excluded.title_en,
             synopsis = excluded.synopsis,
             release_date = excluded.release_date,
             runtime = excluded.runtime,
             type_nm = excluded.type_nm,
             poster_url = excluded.poster_url,
-            backdrop_url = excluded.backdrop_url,
-            rank = excluded.rank,
             imdb_rating = excluded.imdb_rating,
             rated = excluded.rated,
             country = excluded.country,
@@ -134,14 +130,11 @@ function saveMovie(row) {
     `).run(
         row.movie_id,
         row.title,
-        row.title_en,
         row.synopsis,
         row.release_date,
         row.runtime,
         row.type_nm,
         row.poster_url,
-        row.backdrop_url,
-        row.rank,
         row.imdb_rating ?? null,
         row.rated ?? null,
         row.country ?? null,
@@ -175,14 +168,61 @@ function clearMoviesForResync() {
 }
 
 /**
+ * 영화 개수가 상한을 넘으면, 사용 이력이 없는 오래된 영화부터 정리
+ * - rating / wishlist / movie_view_log 모두 없는 영화만 대상으로 함
+ * - 충분한 후보가 없으면 그냥 가능한 만큼만 정리 (강제 500편 맞추지는 않음)
+ */
+function cleanupMoviesIfTooMany(maxTotal) {
+    try {
+        const row = db.prepare('SELECT COUNT(*) AS c FROM movies').get();
+        const total = row ? row.c : 0;
+        if (!total || total <= maxTotal) return;
+
+        const toDelete = total - maxTotal;
+        const candidates = db
+            .prepare(
+                `
+                SELECT m.movie_id
+                FROM movies m
+                LEFT JOIN rating r ON r.movie_id = m.movie_id
+                LEFT JOIN user_movie_wishlist w ON w.movie_id = m.movie_id
+                LEFT JOIN movie_view_log v ON v.movie_id = m.movie_id
+                WHERE r.rating_id IS NULL
+                  AND w.movie_id IS NULL
+                  AND v.log_id IS NULL
+                ORDER BY (m.release_date IS NULL) ASC, m.release_date ASC, m.movie_id ASC
+                LIMIT ?
+            `
+            )
+            .all(toDelete);
+
+        if (!candidates || candidates.length === 0) return;
+
+        const ids = candidates.map((c) => c.movie_id);
+        const placeholders = ids.map(() => '?').join(',');
+
+        db.prepare(`DELETE FROM movie_genres WHERE movie_id IN (${placeholders})`).run(...ids);
+        db.prepare(`DELETE FROM movie_view_log WHERE movie_id IN (${placeholders})`).run(...ids);
+        db.prepare(`DELETE FROM movies WHERE movie_id IN (${placeholders})`).run(...ids);
+
+        console.log(`[MovieSync] 상한 ${maxTotal}편 유지를 위해 ${ids.length}편의 오래된 영화를 정리했습니다.`);
+    } catch (err) {
+        console.error('[MovieSync] 영화 상한 정리 오류:', err.message);
+    }
+}
+
+/**
  * 영화 데이터 동기화 실행
  * - DB에 영화가 있으면 스킵 (단, options.force 또는 FORCE_MOVIE_SYNC=1 이면 삭제 후 재수집)
  * - OMDb 검색으로 영화 목록 수집 후 상세 조회해 포스터·줄거리 저장
  * @param {Object} [options]
  * @param {boolean} [options.force] - true면 기존 데이터 삭제 후 재수집 (Admin 수동/스케줄용)
+ * @param {number} [options.maxMovies] - 한 번에 가져올 최대 영화 수 (기본 50, 최소 10, 최대 200)
  */
 async function syncMovies(options = {}) {
     const force = options.force || process.env.FORCE_MOVIE_SYNC === '1' || process.env.FORCE_MOVIE_SYNC === 'true';
+    const rawMax = options.maxMovies;
+    const maxMovies = Math.min(200, Math.max(10, Number.isInteger(rawMax) ? rawMax : 50));
     if (force) {
         console.log('[MovieSync] 동기화: OMDb에서 영화 추가/갱신합니다. (유저 평점·찜은 유지)');
         invalidateRecommendationCache();
@@ -199,36 +239,48 @@ async function syncMovies(options = {}) {
     console.log('[MovieSync] OMDb API에서 영화 데이터 수집 중...');
 
     try {
-        const searchTerms = ['the', 'love', 'action', 'life'];
         const seen = new Set();
         const items = [];
+        const nowYear = new Date().getFullYear();
+        const years = [nowYear, nowYear - 1, nowYear - 2];
+        const searchTerms = ['love', 'life', 'action', 'family', 'night', 'day'];
 
-        for (const term of searchTerms) {
-            for (let page = 1; page <= 2; page++) {
-                try {
-                    const data = await search(term, page);
-                    const list = data.Search || [];
-                    for (const m of list) {
-                        if (m.imdbID && !seen.has(m.imdbID)) {
-                            seen.add(m.imdbID);
-                            items.push(m.imdbID);
+        for (const year of years) {
+            for (const term of searchTerms) {
+                for (let page = 1; page <= 2; page++) {
+                    try {
+                        const data = await search(term, page, year);
+                        const list = data.Search || [];
+                        for (const m of list) {
+                            if (m.imdbID && !seen.has(m.imdbID)) {
+                                seen.add(m.imdbID);
+                                items.push(m.imdbID);
+                            }
                         }
+                    } catch (err) {
+                        console.warn(`[MovieSync] 검색 실패 (${term} y${year} p${page}):`, err.message);
                     }
-                } catch (err) {
-                    console.warn(`[MovieSync] 검색 실패 (${term} p${page}):`, err.message);
+                    await new Promise((r) => setTimeout(r, 300));
                 }
-                await new Promise((r) => setTimeout(r, 300));
             }
         }
 
         let saved = 0;
-        let rank = 0;
-        for (const imdbID of items.slice(0, 50)) {
+        for (const imdbID of items.slice(0, maxMovies)) {
             try {
                 const detail = await getByImdbId(imdbID);
-                rank++;
-                const row = toMovieRow(detail, rank);
+                const row = toMovieRow(detail);
                 if (!row || !row.title) continue;
+                const poster = row.poster_url && String(row.poster_url).trim();
+                if (!poster || !poster.startsWith('http')) continue;
+                if (row.imdb_rating != null && row.imdb_rating < 6.0) continue;
+
+                const genreStr = detail.Genre;
+                if (!genreStr || typeof genreStr !== 'string') continue;
+                const trimmed = String(genreStr).trim();
+                if (!trimmed || trimmed.toUpperCase() === 'N/A') continue;
+                const genreNames = trimmed.split(',').map((s) => s.trim()).filter(Boolean).filter((n) => n.toUpperCase() !== 'N/A');
+                if (genreNames.length === 0) continue;
 
                 saveGenresFromString(row.movie_id, detail.Genre);
                 saveMovie(row);
@@ -239,7 +291,9 @@ async function syncMovies(options = {}) {
             await new Promise((r) => setTimeout(r, 200));
         }
 
-        console.log(`[MovieSync] 완료: ${saved}개 영화 저장 (OMDb, 포스터·줄거리 포함)`);
+        cleanupMoviesIfTooMany(MAX_TOTAL_MOVIES);
+
+        console.log(`[MovieSync] 완료: ${saved}개 영화 저장 (최대 ${maxMovies}편, OMDb)`);
         const now = new Date().toISOString();
         const triggeredBy = options.triggeredBy === 'system' || typeof options.triggeredBy !== 'number'
             ? 'system'

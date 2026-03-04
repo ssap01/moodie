@@ -94,9 +94,6 @@ const MovieDetail: React.FC<MovieDetailProps> = ({ movieId, onBack, isLoggedIn }
           {/* Info */}
           <div className="md:col-span-2">
             <h1 className="text-3xl md:text-4xl font-bold mb-2">{movie.title}</h1>
-            {movie.title_en && (
-              <p className="text-lg text-black/60 mb-4">({movie.title_en})</p>
-            )}
             {movie.genres && movie.genres.length > 0 && (
               <p className="text-sm mb-4">
                 {movie.genres.map((g) => g.name).join(' / ')}
@@ -111,33 +108,21 @@ const MovieDetail: React.FC<MovieDetailProps> = ({ movieId, onBack, isLoggedIn }
               </div>
             )}
 
-            {/* 스틸컷 (백드롭 + 포스터) */}
+            {/* 포스터 */}
+            {movie.poster_url && (
             <section className="mt-8">
-              <h2 className="text-xl font-bold mb-4">스틸컷</h2>
+              <h2 className="text-xl font-bold mb-4">포스터</h2>
               <div className="flex gap-4 overflow-x-auto pb-4">
-                {movie.backdrop_url && (
-                  <div className="flex-shrink-0 w-full max-w-xl h-48 bg-black/10 rounded overflow-hidden">
-                    <img
-                      src={movie.backdrop_url}
-                      alt={`${movie.title} 스틸컷`}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                )}
-                {movie.poster_url && (
-                  <div className="flex-shrink-0 w-32 h-48 bg-black/10 rounded overflow-hidden">
-                    <img
-                      src={movie.poster_url}
-                      alt={movie.title}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                )}
-                {!movie.backdrop_url && !movie.poster_url && (
-                  <div className="text-sm text-black/40">스틸컷 없음</div>
-                )}
+                <div className="flex-shrink-0 w-32 h-48 bg-black/10 rounded overflow-hidden">
+                  <img
+                    src={movie.poster_url}
+                    alt={movie.title}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
               </div>
             </section>
+            )}
 
             {/* Movie Info */}
             <section className="mt-8">
@@ -159,11 +144,6 @@ const MovieDetail: React.FC<MovieDetailProps> = ({ movieId, onBack, isLoggedIn }
                   <div>
                     <span className="font-medium">Runtime: </span>
                     {movie.runtime} minutes
-                  </div>
-                )}
-                {movie.rank && (
-                  <div className="mt-4 px-4 py-2 bg-black/10 rounded inline-block">
-                    현재 순위: 박스오피스 {movie.rank}위
                   </div>
                 )}
               </div>

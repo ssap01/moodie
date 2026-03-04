@@ -123,9 +123,6 @@ const ChatBot: React.FC<ChatBotProps> = ({ isLoggedIn = false, onSelectMovie }) 
                         <div className="font-medium serif text-xs group-hover:opacity-80 transition-opacity">
                           {movie.title}
                         </div>
-                        {movie.title_en && (
-                          <div className="text-[9px] italic opacity-60 mt-0.5">{movie.title_en}</div>
-                        )}
                         {movie.imdb_rating && (
                           <div className="opacity-60 mt-1.5 text-[9px]">⭐ IMDb {movie.imdb_rating.toFixed(1)}</div>
                         )}

@@ -1,0 +1,29 @@
+# 문서·기획 (실행 불필요, 노출 최소화)
+require/
+사이트-보기-방법.txt
+frontend/README.md
+
+# Windows 로컬용
+*.bat
+
+# 개발/테스트 스크립트
+scripts/test-omdb-key.js
+
+# 프론트 전체 (백엔드 전용 이미지이므로 dist는 EC2에서 nginx로 별도 서빙)
+frontend/
+
+# 환경·보안 (이미지에 넣지 않음)
+.env
+.env.*
+!.env.example
+
+# Git·IDE
+.git
+.gitignore
+.vscode
+.idea
+
+# 로그·임시
+*.log
+*.tmp
+*.temp

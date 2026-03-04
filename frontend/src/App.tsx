@@ -11,6 +11,7 @@ import TermsModal from './components/TermsModal';
 import ContactModal from './components/ContactModal';
 import Admin from './pages/Admin';
 import AllMovies from './pages/AllMovies';
+import Curations from './pages/Curations';
 import { Page, Movie, User, ListSort } from './types';
 import { authAPI } from './services/api';
 
@@ -54,6 +55,10 @@ const App: React.FC = () => {
     }
     if (page === 'ADMIN') {
       navigate('/admin');
+      return;
+    }
+    if (page === 'CURATIONS') {
+      navigate('/curations');
       return;
     }
     navigate('/');
@@ -171,6 +176,16 @@ const App: React.FC = () => {
                 key={loginNavKey}
                 initialSignUp={true}
                 onLogin={handleLogin}
+              />
+            }
+          />
+          <Route
+            path="/curations"
+            element={
+              <Curations
+                isLoggedIn={isLoggedIn}
+                onSelectMovie={handleSelectMovie}
+                onNavigate={handleNavigate}
               />
             }
           />

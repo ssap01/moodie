@@ -45,7 +45,7 @@
 - **스택:** 백엔드 Express + SQLite(better-sqlite3), 프론트 React 19 + Vite + TypeScript + Tailwind
 - **역할:** 백엔드 서버(포트 3000) + 프론트(포트 5173) 분리
 - **DB:** SQLite — users, movies, rating, genres, movie_genres, recommendation_cache
-- **데이터 소스:** OMDb + KOBIS (동기화·장르 등), 서버 기동 시 영화 동기화
+- **데이터 소스:** OMDb (현재 KOBIS는 사용하지 않음), 서버 기동 시 영화 동기화
 
 ### 디렉터리 구조
 - **백엔드:** server.js, db.js, routes(auth, movies, ratings, recommendations, chatbot, moodRecommendations), controllers, services, middleware
@@ -62,7 +62,7 @@
 ### 단점
 - **프론트/백 분리:** 두 서버 실행 필요, CORS·프록시 설정 필요
 - **디자인 스펙 문서 없음:** prototype처럼 단일 DESIGN_SPEC 없음
-- **영화 데이터:** OMDb+KOBIS 혼용(팀 규칙상 TMDB 단일화 고려 시 이전 작업 필요)
+- **영화 데이터:** OMDb 단일 사용(향후 TMDB 등으로 전환 시 이전 작업 필요)
 
 ---
 
@@ -73,7 +73,7 @@
 | 프레임워크 | Next.js (풀스택) | Express + Vite (분리) |
 | DB | 없음 | SQLite |
 | 인증 | 스텁 | JWT·회원가입·프로필·비밀번호·계정삭제 구현 |
-| 영화 데이터 | KOBIS 실시간 | OMDb+KOBIS, DB 동기화 |
+| 영화 데이터 | KOBIS 실시간 | OMDb, DB 동기화 |
 | 추천 | API 스텁 | 규칙 기반 + 기분 기반 + 챗봇 |
 | 디자인 스펙 | DESIGN_SPEC 명시 | 없음 |
 | 문서 | PRD, API 가이드 | project-status, chatbot FAQ |

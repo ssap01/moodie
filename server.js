@@ -90,8 +90,10 @@ app.listen(PORT, async () => {
         try {
             const row = db.prepare("SELECT value FROM settings WHERE key = 'auto_sync_enabled'").get();
             if (!row || row.value !== '1') return;
+            const maxRow = db.prepare("SELECT value FROM settings WHERE key = 'max_movies_per_sync'").get();
+            const maxMovies = maxRow ? parseInt(maxRow.value, 10) : undefined;
             console.log('[MovieSync] 스케줄: 자동 동기화 실행');
-            await syncMovies({ force: true, triggeredBy: 'system' });
+            await syncMovies({ force: true, triggeredBy: 'system', maxMovies: Number.isNaN(maxMovies) ? undefined : maxMovies });
         } catch (err) {
             console.error('[MovieSync] 스케줄 실행 오류:', err);
         }

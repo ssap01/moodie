@@ -19,7 +19,7 @@ if (users.length === 0) {
 console.log('\n=== movies (영화 개수 및 샘플) ===');
 const count = db.prepare('SELECT COUNT(*) as n FROM movies').get();
 console.log(`  총 ${count.n}개 영화`);
-const movies = db.prepare('SELECT movie_id, title, release_date FROM movies ORDER BY rank LIMIT 5').all();
+const movies = db.prepare('SELECT movie_id, title, release_date FROM movies ORDER BY imdb_rating DESC LIMIT 5').all();
 movies.forEach((m) => console.log(`  ${m.movie_id} | ${m.title} | ${m.release_date || '-'}`));
 
 db.close();

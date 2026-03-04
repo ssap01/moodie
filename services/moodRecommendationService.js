@@ -122,8 +122,8 @@ function getMoodBasedMovies(moodText, limit = 5, userId = null) {
             if (userRatedIds.length > 0) {
                 const ratedPh = userRatedIds.map(() => '?').join(',');
                 rows = db.prepare(`
-                    SELECT DISTINCT m.movie_id, m.title, m.title_en, m.synopsis, m.release_date, 
-                           m.runtime, m.type_nm, m.poster_url, m.backdrop_url, m.rank, m.imdb_rating
+                    SELECT DISTINCT m.movie_id, m.title, m.synopsis, m.release_date, 
+                           m.runtime, m.type_nm, m.poster_url, m.imdb_rating
                     FROM movies m
                     JOIN movie_genres mg ON m.movie_id = mg.movie_id
                     WHERE mg.genre_id IN (${genreIdPh})
@@ -134,8 +134,8 @@ function getMoodBasedMovies(moodText, limit = 5, userId = null) {
                 `).all(...genreIds, ...userRatedIds, limit);
             } else {
                 rows = db.prepare(`
-                    SELECT DISTINCT m.movie_id, m.title, m.title_en, m.synopsis, m.release_date, 
-                           m.runtime, m.type_nm, m.poster_url, m.backdrop_url, m.rank, m.imdb_rating
+                    SELECT DISTINCT m.movie_id, m.title, m.synopsis, m.release_date, 
+                           m.runtime, m.type_nm, m.poster_url, m.imdb_rating
                     FROM movies m
                     JOIN movie_genres mg ON m.movie_id = mg.movie_id
                     WHERE mg.genre_id IN (${genreIdPh})
@@ -155,14 +155,11 @@ function getMoodBasedMovies(moodText, limit = 5, userId = null) {
     return rows.map((row) => ({
         movie_id: row.movie_id,
         title: row.title,
-        title_en: row.title_en,
         synopsis: row.synopsis,
         release_date: row.release_date,
         runtime: row.runtime,
         type_nm: row.type_nm,
         poster_url: row.poster_url,
-        backdrop_url: row.backdrop_url,
-        rank: row.rank,
         imdb_rating: row.imdb_rating,
     }));
 }
@@ -180,8 +177,8 @@ function getPopularMovies(limit, userId = null) {
     if (userRatedIds.length > 0) {
         const ratedPh = userRatedIds.map(() => '?').join(',');
         rows = db.prepare(`
-            SELECT movie_id, title, title_en, synopsis, release_date, runtime, type_nm, 
-                   poster_url, backdrop_url, rank, imdb_rating
+            SELECT movie_id, title, synopsis, release_date, runtime, type_nm, 
+                   poster_url, imdb_rating
             FROM movies
             WHERE movie_id NOT IN (${ratedPh})
             ORDER BY imdb_rating DESC, release_date DESC
@@ -189,8 +186,8 @@ function getPopularMovies(limit, userId = null) {
         `).all(...userRatedIds, limit);
     } else {
         rows = db.prepare(`
-            SELECT movie_id, title, title_en, synopsis, release_date, runtime, type_nm, 
-                   poster_url, backdrop_url, rank, imdb_rating
+            SELECT movie_id, title, synopsis, release_date, runtime, type_nm, 
+                   poster_url, imdb_rating
             FROM movies
             ORDER BY imdb_rating DESC, release_date DESC
             LIMIT ?
@@ -200,14 +197,11 @@ function getPopularMovies(limit, userId = null) {
     return rows.map((row) => ({
         movie_id: row.movie_id,
         title: row.title,
-        title_en: row.title_en,
         synopsis: row.synopsis,
         release_date: row.release_date,
         runtime: row.runtime,
         type_nm: row.type_nm,
         poster_url: row.poster_url,
-        backdrop_url: row.backdrop_url,
-        rank: row.rank,
         imdb_rating: row.imdb_rating,
     }));
 }

@@ -128,7 +128,9 @@ router.get('/sync/settings', (req, res) => {
             last_sync_triggered_by_label = user ? user.email : '알 수 없음';
         }
         const movieCount = db.prepare('SELECT COUNT(*) AS count FROM movies').get().count;
-        res.json({ auto_sync_enabled, last_movie_sync_at, last_sync_triggered_by_label, movie_count: movieCount });
+        const maxRow = db.prepare("SELECT value FROM settings WHERE key = 'max_movies_per_sync'").get();
+        const max_movies_per_sync = maxRow ? parseInt(maxRow.value, 10) : 50;
+        res.json({ auto_sync_enabled, last_movie_sync_at, last_sync_triggered_by_label, movie_count: movieCount, max_movies_per_sync: Number.isNaN(max_movies_per_sync) ? 50 : max_movies_per_sync });
     } catch (err) {
         console.error('Admin get sync settings error:', err);
         res.status(500).json({ error: '설정을 불러오는 중 오류가 발생했습니다.' });
@@ -142,14 +144,24 @@ router.get('/sync/settings', (req, res) => {
  */
 router.patch('/sync/settings', (req, res) => {
     try {
-        const { auto_sync_enabled } = req.body;
-        if (typeof auto_sync_enabled !== 'boolean') {
-            return res.status(400).json({ error: 'auto_sync_enabled는 true/false 여야 합니다.' });
+        const { auto_sync_enabled, max_movies_per_sync } = req.body;
+        if (typeof auto_sync_enabled === 'boolean') {
+            db.prepare(
+                "INSERT INTO settings (key, value) VALUES ('auto_sync_enabled', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+            ).run(auto_sync_enabled ? '1' : '0');
         }
-        db.prepare(
-            "INSERT INTO settings (key, value) VALUES ('auto_sync_enabled', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
-        ).run(auto_sync_enabled ? '1' : '0');
-        res.json({ auto_sync_enabled });
+        if (typeof max_movies_per_sync === 'number' && Number.isInteger(max_movies_per_sync)) {
+            const clamped = Math.min(200, Math.max(10, max_movies_per_sync));
+            db.prepare(
+                "INSERT INTO settings (key, value) VALUES ('max_movies_per_sync', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+            ).run(String(clamped));
+        }
+        const row = db.prepare("SELECT value FROM settings WHERE key = 'auto_sync_enabled'").get();
+        const maxRow = db.prepare("SELECT value FROM settings WHERE key = 'max_movies_per_sync'").get();
+        res.json({
+            auto_sync_enabled: row && row.value === '1',
+            max_movies_per_sync: maxRow ? parseInt(maxRow.value, 10) : 50,
+        });
     } catch (err) {
         console.error('Admin update sync settings error:', err);
         res.status(500).json({ error: '설정 저장 중 오류가 발생했습니다.' });
@@ -163,7 +175,16 @@ router.patch('/sync/settings', (req, res) => {
 router.post('/sync/movies', async (req, res) => {
     try {
         const triggeredBy = req.user && req.user.user_id ? req.user.user_id : 'system';
-        const result = await syncMovies({ force: true, triggeredBy });
+        const rawMax = req.body && req.body.maxMovies;
+        let maxMovies;
+        if (typeof rawMax === 'number' && Number.isInteger(rawMax)) {
+            maxMovies = rawMax;
+        } else {
+            const maxRow = db.prepare("SELECT value FROM settings WHERE key = 'max_movies_per_sync'").get();
+            maxMovies = maxRow ? parseInt(maxRow.value, 10) : undefined;
+            if (Number.isNaN(maxMovies)) maxMovies = undefined;
+        }
+        const result = await syncMovies({ force: true, triggeredBy, maxMovies });
         if (result.skipped && result.error) {
             return res.status(400).json({
                 error: result.error,

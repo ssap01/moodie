@@ -88,7 +88,7 @@ const Home: React.FC<HomeProps> = ({ isLoggedIn, onSelectMovie, onNavigate }) =>
       setNewArrivalsMovies(newArrivalsRes.movies);
       if (isLoggedIn) {
         try {
-          const recs = await recommendationsAPI.get();
+          const recs = await recommendationsAPI.get(10);
           setRecommendedMovies(recs);
         } catch {
           /**/
@@ -155,7 +155,7 @@ const Home: React.FC<HomeProps> = ({ isLoggedIn, onSelectMovie, onNavigate }) =>
                 <MovieCard
                   key={movie.movie_id}
                   movie={movie}
-                  rank={idx + 1}
+                  index={idx + 1}
                   onClick={() => onSelectMovie(movie)}
                 />
               ))}
@@ -173,7 +173,11 @@ const Home: React.FC<HomeProps> = ({ isLoggedIn, onSelectMovie, onNavigate }) =>
             </h2>
             <button
               type="button"
-              onClick={() => onNavigate?.('ALL_MOVIES', { initialSort: 'release_date' })}
+              onClick={() =>
+                isLoggedIn && recommendedMovies.length > 0
+                  ? onNavigate?.('CURATIONS')
+                  : onNavigate?.('ALL_MOVIES', { initialSort: 'release_date' })
+              }
               className="text-[9px] md:text-[10px] tracking-widest uppercase opacity-40 hover:opacity-100 pb-1 transition-opacity border-b border-black/10"
             >
               View All Selection

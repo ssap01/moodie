@@ -9,16 +9,18 @@ interface MovieModalProps {
   isLoggedIn: boolean;
 }
 
+function getBookTicketUrl(movieTitle: string): string {
+  const isKo = typeof navigator !== 'undefined' && navigator.language.startsWith('ko');
+  if (isKo) return 'https://www.cgv.co.kr/';
+  return `https://www.fandango.com/search?q=${encodeURIComponent(movieTitle)}`;
+}
+
 const MovieModal: React.FC<MovieModalProps> = ({ movie: initialMovie, onClose, isLoggedIn }) => {
   const [movie, setMovie] = useState<Movie | null>(initialMovie);
   const [rating, setRating] = useState<Rating | null>(null);
   const [userRating, setUserRating] = useState<number>(0);
   const [loading, setLoading] = useState(!initialMovie.poster_url);
-  const [currentStill, setCurrentStill] = useState(0);
   const [isInWishlist, setIsInWishlist] = useState(false);
-
-  const stills = [initialMovie.backdrop_url, initialMovie.poster_url].filter(Boolean) as string[];
-  if (stills.length === 0 && initialMovie.poster_url) stills.push(initialMovie.poster_url);
 
   useEffect(() => {
     const onEscape = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -50,12 +52,6 @@ const MovieModal: React.FC<MovieModalProps> = ({ movie: initialMovie, onClose, i
     };
     load();
   }, [initialMovie.movie_id]);
-
-  useEffect(() => {
-    if (stills.length <= 1) return;
-    const t = setInterval(() => setCurrentStill((p) => (p + 1) % stills.length), 4000);
-    return () => clearInterval(t);
-  }, [stills.length]);
 
   const handleRating = async (value: number) => {
     if (!isLoggedIn) return;
@@ -127,11 +123,11 @@ const MovieModal: React.FC<MovieModalProps> = ({ movie: initialMovie, onClose, i
           </svg>
         </button>
 
-        {/* Left: 포스터 + 스틸 (moodie01 스타일) */}
+        {/* Left: 포스터 */}
         <div className="w-full md:w-5/12 h-[40vh] md:h-auto min-h-[280px] relative bg-gray-300 flex-shrink-0">
           {m.poster_url ? (
             <img
-              src={stills[currentStill] || m.poster_url}
+              src={m.poster_url}
               alt={m.title}
               className="w-full h-full object-cover opacity-90"
               style={{ filter: 'saturate(0.3)' }}
@@ -139,31 +135,12 @@ const MovieModal: React.FC<MovieModalProps> = ({ movie: initialMovie, onClose, i
           ) : (
             <PosterPlaceholder showLabel />
           )}
-          {stills.length > 1 && (
-            <div className="absolute bottom-0 left-0 w-full p-4 bg-gradient-to-t from-black/50 to-transparent">
-              <button
-                type="button"
-                onClick={() => setCurrentStill((p) => (p + 1) % stills.length)}
-                className="relative h-16 md:h-24 w-full overflow-hidden border border-white/20 block"
-              >
-                {stills.map((src, idx) => (
-                  <img
-                    key={idx}
-                    src={src}
-                    alt=""
-                    className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 pointer-events-none ${idx === currentStill ? 'opacity-100' : 'opacity-0'}`}
-                  />
-                ))}
-              </button>
-            </div>
-          )}
         </div>
 
         {/* Right: 정보 */}
         <div className="flex-1 p-6 md:p-12 overflow-y-auto flex flex-col bg-[#D8D5CF]">
           <div className="mb-6 md:mb-8 mt-4 md:mt-0">
             <h2 className="serif text-3xl md:text-5xl mb-2">{m.title}</h2>
-            <p className="serif text-lg md:text-xl italic opacity-50">{m.title_en || '\u00A0'}</p>
           </div>
 
           <div className="flex flex-wrap gap-x-8 gap-y-4 mb-8 text-[9px] md:text-[10px] tracking-widest uppercase opacity-70">
@@ -203,12 +180,14 @@ const MovieModal: React.FC<MovieModalProps> = ({ movie: initialMovie, onClose, i
 
           <div className="mt-auto pt-8 border-t border-black/5">
             <div className="flex flex-col sm:flex-row gap-4 mb-6">
-              <button
-                type="button"
-                className="flex-1 bg-black text-[#D8D5CF] py-4 uppercase text-[9px] md:text-[10px] tracking-widest hover:bg-black/80 transition-colors"
+              <a
+                href={getBookTicketUrl(m.title)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 bg-black text-[#D8D5CF] py-4 uppercase text-[9px] md:text-[10px] tracking-widest hover:bg-black/80 transition-colors text-center inline-flex items-center justify-center"
               >
                 Book Tickets
-              </button>
+              </a>
               <button
                 type="button"
                 onClick={handleWishlistToggle}

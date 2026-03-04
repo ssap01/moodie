@@ -141,7 +141,6 @@ function getMyRatings(req, res) {
                 r.created_at,
                 r.updated_at,
                 m.title,
-                m.title_en,
                 m.poster_url,
                 m.release_date
             FROM rating r

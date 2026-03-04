@@ -13,17 +13,26 @@ function pick(arr) {
 }
 
 const rules = [
+    // 0. 기분/감정 추천 안내 (일반 추천보다 먼저 매칭)
+    {
+        pattern: /기분\s*추천|기분으로\s*추천|감정\s*추천|상황\s*추천|감정으로\s*추천|기분\s*맞춤|기분\s*영화/,
+        response: [
+            '"지금 우울해요", "친구들이랑 볼 영화", "데이트할 때", "밤에 볼 영화"처럼 감정이나 상황을 한 줄로 적어주시면 그에 맞는 영화를 추천해드려요. 위에 그대로 입력해 보세요.',
+            '감정이나 상황을 한 줄로 적어주시면 맞춰서 추천해드려요. 예: "지금 우울해요", "데이트할 때" — 이렇게 입력해 보세요.',
+            '기분이나 상황을 말씀해 주시면 그에 맞는 영화를 골라드려요. "우울해요", "친구들이랑", "밤에 볼 영화" 같은 식으로 입력해 보세요.',
+        ],
+    },
     // 1. 영화 추천 관련
     {
         pattern: /영화\s*추천|추천|추천해|뭐\s*볼까|recommend/,
         response: (ctx) => {
             if (ctx.userId && ctx.userStats?.totalRatings > 0) {
                 if (ctx.favoriteGenres?.length > 0) {
-                    return `당신이 좋아하는 ${ctx.favoriteGenres.slice(0, 2).join(', ')} 장르의 영화를 추천해드릴게요. 로그인 후 추천 페이지에서 맞춤 추천을 받아보세요.${RECOMMEND_GUIDE}`;
+                    return `당신이 좋아하는 ${ctx.favoriteGenres.slice(0, 2).join(', ')} 장르의 영화를 추천해드릴게요. 메인 페이지 Personalized 섹션이나 Curations 메뉴에서 맞춤 추천을 더 볼 수 있어요.${RECOMMEND_GUIDE}`;
                 }
                 return `지금까지 ${ctx.userStats.totalRatings}개의 영화에 평점을 주셨네요. 더 많은 영화를 평가하시면 더 정확한 추천을 받을 수 있어요.${RECOMMEND_GUIDE}`;
             }
-            return `Top Rated Movies와 New Arrivals에서 마음에 드는 영화를 골라보세요. 로그인하면 맞춤 추천도 받을 수 있어요.${RECOMMEND_GUIDE}`;
+            return `Top Rated Movies와 New Arrivals에서 마음에 드는 영화를 골라보세요. 로그인하면 맞춤 추천도 받을 수 있고, Curations 메뉴에서 더 많이 볼 수 있어요.${RECOMMEND_GUIDE}`;
         },
     },
     // 2. 내 취향
@@ -40,15 +49,34 @@ const rules = [
             return '로그인하고 영화에 평점을 주시면 당신의 취향을 분석해드릴 수 있어요.';
         },
     },
-    // 3. 최근 본 영화
+    // 2-1. 최근 개봉 (신작) → New Arrivals로 유도
     {
-        pattern: /최근|방금|요즘|최근에\s*본/,
+        pattern: /최근\s*개봉|최근\s*영화|요즘\s*개봉|방금\s*개봉|요즘\s*나온/,
+        response: [
+            '최근 개봉한 영화는 메인 페이지 New Arrivals나 Curations에서 보실 수 있어요.',
+            '신작은 New Arrivals 섹션에서 개봉일 최신순으로 볼 수 있어요.',
+        ],
+    },
+    // 3. 최근 본 영화 (평가 이력)
+    {
+        pattern: /최근\s*본|최근에\s*본|방금\s*본|요즘\s*본|최근\s*평가|최근\s*시청/,
         response: (ctx) => {
             if (ctx.userId && ctx.recentRatings?.length > 0) {
                 const recentList = ctx.recentRatings.slice(0, 3).map((m) => `${m.title}(${m.rating}점)`).join(', ');
                 return `최근 평가하신 영화: ${recentList}. 더 많은 영화를 탐색해보세요!`;
             }
-            return '로그인하고 영화에 평점을 주시면 최근 본 영화를 추적해드릴 수 있어요.';
+            return '로그인하고 영화에 평점을 주시면 최근 평가한 영화를 알려드릴 수 있어요.';
+        },
+    },
+    // 3-2. 최근/방금/요즘 (단독, 맥락 불명) → 최근 본 영화로 해석
+    {
+        pattern: /^(최근|방금|요즘)$|^최근\s*뭐|^방금\s*뭐/,
+        response: (ctx) => {
+            if (ctx.userId && ctx.recentRatings?.length > 0) {
+                const recentList = ctx.recentRatings.slice(0, 3).map((m) => `${m.title}(${m.rating}점)`).join(', ');
+                return `최근 평가하신 영화: ${recentList}. 더 많은 영화를 탐색해보세요!`;
+            }
+            return '로그인하고 영화에 평점을 주시면 최근 본 영화를 알려드릴 수 있어요. 신작은 New Arrivals에서 보세요.';
         },
     },
     // 4. 회원가입
@@ -106,15 +134,15 @@ const rules = [
     {
         pattern: /신작|최신|new\s*arrival/,
         response: [
-            '메인 페이지 New Arrivals 섹션에서 개봉일 최신순 영화를 볼 수 있어요.',
-            'New Arrivals 섹션에서 최신 개봉 영화를 보실 수 있어요. 메인 페이지에 있어요.',
+            '메인 페이지 New Arrivals 섹션에서 개봉일 최신순 영화를 볼 수 있어요. Curations 메뉴에서도 더 볼 수 있어요.',
+            'New Arrivals나 Curations에서 최신 개봉 영화를 보실 수 있어요.',
         ],
     },
     // 9. 인기/순위
     {
         pattern: /인기|순위|top\s*rated|평점\s*순/,
         response: [
-            'Top Rated Movies 섹션에서 IMDb 평점 순으로 정렬된 영화를 보실 수 있어요.',
+            'Top Rated Movies 섹션에서 IMDb 평점 순으로 정렬된 영화를 보실 수 있어요. Curations에서 맞춤 추천도 있어요.',
             '메인 페이지 Top Rated Movies에서 평점 순 인기 영화를 볼 수 있어요.',
         ],
     },
@@ -224,6 +252,14 @@ const rules = [
             '기분이나 상황을 말씀해 주시면 그에 맞는 영화를 골라드려요. "우울해요", "친구들이랑", "밤에 볼 영화" 같은 식으로 입력해 보세요.',
         ],
     },
+    // 19-2. 예매/티켓/Cinema/Book Ticket
+    {
+        pattern: /예매|영화표|티켓|ticket|cinema|book\s*ticket|어디서\s*봐|어디서\s*보나|극장/,
+        response: [
+            '영화 상세 모달에서 Book Tickets 버튼을 누르시면 예매 사이트(한국은 CGV, 해외는 Fandango)로 연결돼요. 네비게이션 Cinema 메뉴에서도 극장 사이트로 이동할 수 있어요.',
+            '예매는 영화를 클릭해 나오는 상세 창의 Book Tickets로 가시면 돼요. 메뉴의 Cinema에서도 극장 예매 사이트로 이동할 수 있어요.',
+        ],
+    },
     // 20. 문의/연락처
     {
         pattern: /문의|연락처|고객\s*센터|contact|연락|문의하기/,
@@ -232,9 +268,9 @@ const rules = [
             '이용 문의는 페이지 하단 Contact 버튼을 통해 보내주세요.',
         ],
     },
-    // 21. Top Rated / New Arrivals 설명
+    // 21. Top Rated / New Arrivals 설명 (뭐/가 등 질문형)
     {
-        pattern: /top\s*rated\s*뭐|new\s*arrival\s*뭐|인기\s*영화\s*뭐|신작\s*뭐/,
+        pattern: /top\s*rated\s*뭐|top\s*rated가|new\s*arrival\s*뭐|인기\s*영화\s*뭐|인기\s*영화가|신작\s*뭐|신작이\s*뭐|평점\s*순\s*뭐|최신\s*영화\s*뭐/,
         response: [
             'Top Rated Movies는 IMDb 평점 순으로 정렬된 영화, New Arrivals는 개봉일 최신순 영화예요. 메인 페이지에서 보실 수 있어요.',
             'Top Rated는 평점 순 인기 영화, New Arrivals는 최신 개봉 영화예요. 메인 페이지에 있어요.',

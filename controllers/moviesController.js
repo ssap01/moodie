@@ -4,7 +4,7 @@
 
 const db = require('../db');
 
-const MOVIE_LIST_FIELDS = 'movie_id, title, title_en, synopsis, release_date, runtime, type_nm, poster_url, backdrop_url, rank, imdb_rating, rated, country, language, director, metascore, imdb_votes';
+const MOVIE_LIST_FIELDS = 'movie_id, title, synopsis, release_date, runtime, type_nm, poster_url, imdb_rating, rated, country, language, director, metascore, imdb_votes';
 
 /**
  * WHERE 절과 바인드 파라미터 생성 (필터: rated, country, language, director, genre)
@@ -147,7 +147,7 @@ function getNewArrivals(req, res) {
 
 /**
  * GET /movies/search?q=검색어&limit=20
- * 제목(title, title_en), 감독(director) 기준 LIKE 검색 (DB 영화만)
+ * 제목(title), 감독(director) 기준 LIKE 검색 (DB 영화만)
  */
 function getSearch(req, res) {
     try {
@@ -162,10 +162,10 @@ function getSearch(req, res) {
         const movies = db.prepare(`
             SELECT ${MOVIE_LIST_FIELDS}
             FROM movies
-            WHERE title LIKE ? OR (title_en IS NOT NULL AND title_en LIKE ?) OR (director IS NOT NULL AND director LIKE ?)
+            WHERE title LIKE ? OR (director IS NOT NULL AND director LIKE ?)
             ORDER BY (CASE WHEN imdb_rating IS NULL THEN 1 ELSE 0 END), imdb_rating DESC, release_date DESC, movie_id DESC
             LIMIT ?
-        `).all(pattern, pattern, pattern, limit);
+        `).all(pattern, pattern, limit);
 
         try {
             const recent = db.prepare(
@@ -201,15 +201,15 @@ function getMovieById(req, res) {
             const movies = db.prepare(`
                 SELECT ${MOVIE_LIST_FIELDS}
                 FROM movies
-                WHERE title LIKE ? OR (title_en IS NOT NULL AND title_en LIKE ?) OR (director IS NOT NULL AND director LIKE ?)
+                WHERE title LIKE ? OR (director IS NOT NULL AND director LIKE ?)
                 ORDER BY (CASE WHEN imdb_rating IS NULL THEN 1 ELSE 0 END), imdb_rating DESC, release_date DESC, movie_id DESC
                 LIMIT ?
-            `).all(pattern, pattern, pattern, limit);
+            `).all(pattern, pattern, limit);
             return res.json({ movies, query: q });
         }
 
         const movie = db.prepare(`
-            SELECT movie_id, title, title_en, synopsis, release_date, runtime, type_nm, poster_url, backdrop_url, rank, imdb_rating, rated, country, language, director, metascore, imdb_votes, created_at
+            SELECT movie_id, title, synopsis, release_date, runtime, type_nm, poster_url, imdb_rating, rated, country, language, director, metascore, imdb_votes, created_at
             FROM movies WHERE movie_id = ?
         `).get(movieId);
 

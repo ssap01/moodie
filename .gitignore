@@ -2,16 +2,22 @@
 node_modules/
 frontend/node_modules/
 
-# Environment variables
+# Environment variables (절대 업로드 금지 - API 키, JWT 등)
 .env
 .env.local
+.env.development
+.env.production
 .env.*.local
 
-# Database
+# Database (절대 업로드 금지 - 사용자 데이터)
 *.db
 *.db-shm
 *.db-wal
 moodie.db
+
+# 키/비밀
+*.pem
+secrets/
 
 # Build outputs
 frontend/dist/

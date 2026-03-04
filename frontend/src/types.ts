@@ -1,14 +1,11 @@
 export interface Movie {
   movie_id: number;
   title: string;
-  title_en?: string;
   synopsis?: string;
   release_date?: string;
   runtime?: number;
   type_nm?: string;
   poster_url?: string;
-  backdrop_url?: string;
-  rank?: number;
   imdb_rating?: number;
   rated?: string;
   country?: string;
@@ -46,7 +43,6 @@ export interface UserRating {
   created_at: string;
   updated_at: string;
   title: string;
-  title_en?: string;
   poster_url?: string;
   release_date?: string;
 }
@@ -54,7 +50,6 @@ export interface UserRating {
 export interface WishlistItem {
   movie_id: number;
   title: string;
-  title_en?: string;
   poster_url?: string;
   release_date?: string;
   created_at: string;
@@ -65,6 +60,6 @@ export interface Recommendation {
   reason: string;
 }
 
-export type Page = 'HOME' | 'LOGIN' | 'SIGNUP' | 'MOVIE_DETAIL' | 'ADMIN' | 'MYPAGE' | 'ALL_MOVIES';
+export type Page = 'HOME' | 'LOGIN' | 'SIGNUP' | 'MOVIE_DETAIL' | 'ADMIN' | 'MYPAGE' | 'ALL_MOVIES' | 'CURATIONS';
 
 export type ListSort = 'rating' | 'release_date' | 'metascore' | 'imdb_votes';

@@ -7,7 +7,7 @@ Node.js + Express + SQLite 기반 영화 추천 서버
 - 영화: CRUD 및 상세 조회
 - 평점: 영화별 평점, 한 유저 1회
 - 추천: 유저 평점 기반 추천 + GPT 추천 이유
-- 영화 데이터: TMDB 또는 KOBIS API 활용, 1회만 서버 시작 시 가져오기
+- 영화 데이터: OMDb API 활용(현재 TMDB/KOBIS 미사용), 서버 시작 시 1회만 데이터 가져오기
 - 환경변수: JWT_SECRET, OPENAI_API_KEY
 
 ## 기본 환경
@@ -39,13 +39,11 @@ Node.js + Express + SQLite 기반 영화 추천 서버
 ### 2. movies
 - movie_id BIGINT PK
 - title VARCHAR(255) NOT NULL
-- title_en VARCHAR(255) NULL
 - synopsis TEXT NULL
 - release_date DATE NULL
 - runtime INT NULL
 - type_nm VARCHAR(50) NULL
 - poster_url VARCHAR(255) NULL
-- rank INT NULL
 - created_at DATETIME NOT NULL
 - updated_at DATETIME NULL
 
@@ -104,12 +102,12 @@ Node.js + Express + SQLite 기반 영화 추천 서버
 
 ### GET /movies/:id
 - 영화 상세 정보 반환
-- 포함 필드: movie_id, title, title_en, synopsis, release_date, runtime, type_nm, poster_url, rank
+- 포함 필드: movie_id, title, synopsis, release_date, runtime, type_nm, poster_url
 
 ### 영화 데이터 초기화
-- 서버 시작 시 1회만 TMDB/KOBIS API 호출
+- 서버 시작 시 1회만 OMDb API 호출
 - 필수: movie_id, title, release_date
-- 선택: title_en, synopsis, runtime, type_nm, poster_url, rank
+- 선택: synopsis, runtime, type_nm, poster_url
 - 이미 DB에 데이터 존재 시 재호출 금지
 
 ---
