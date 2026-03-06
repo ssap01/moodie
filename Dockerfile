@@ -5,7 +5,7 @@ WORKDIR /app
 
 # 백엔드 의존성만 설치 (문서 제안: --omit=dev)
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm install --omit=dev
 
 # 백엔드 소스 (.dockerignore로 require/, frontend 등 제외됨)
 COPY . .
